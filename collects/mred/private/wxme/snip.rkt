@@ -67,8 +67,11 @@
 (define TAB-WIDTH 20)
 
 (define (replace-nuls s)
-  (if (for/or ([c (in-string s)]) (eq? #\nul c))
-      (regexp-replace* #rx"\0" s " ")
+  (if (for/or ([c (in-string s)]) (or (eq? #\nul c)
+                                      (eq? #\page c)))
+      (regexp-replace* #rx"\f"
+                       (regexp-replace* #rx"\0" s " ")
+                       "^L")
       s))
 
 ;; ------------------------------------------------------------
@@ -154,7 +157,18 @@
         (unless (send s-admin recounted this #t)
           (set! s-count old-count)))))
 
-  (def/public (set-flags [symbol-list? new-flags])
+  (def/public (set-flags [(make-list (symbol-in is-text 
+                                                can-append 
+                                                invisible 
+                                                newline 
+                                                hard-newline 
+                                                handles-events 
+                                                width-depends-on-x 
+                                                height-depends-on-y 
+                                                width-depends-on-y 
+                                                height-depends-on-x
+                                                handles-all-mouse-events)) 
+                          new-flags])
     (s-set-flags (symbols->flags new-flags)))
   
   (define/public (s-set-flags new-flags)
