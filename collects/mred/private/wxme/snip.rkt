@@ -8,11 +8,6 @@
          "cycle.ss"
          "wx.ss")
 
-(define (symbol-list? l)
-  (and (list? l) (andmap symbol? l)))
-(define (mutable-string? s)
-  (and (string? s) (not (immutable? s))))
-
 (provide snip%
          snip-class%
          string-snip%
@@ -55,7 +50,29 @@
          snip%-get-text
 
          string-snip-buffer
-         string-snip-dtext)
+         string-snip-dtext
+
+         caret-status?
+
+         selected-text-color
+
+         image-type?)
+
+(define (symbol-list? l)
+  (and (list? l) (andmap symbol? l)))
+(define (mutable-string? s)
+  (and (string? s) (not (immutable? s))))
+
+(define (caret-status? v)
+  (or (eq? v 'no-caret)
+      (eq? v 'show-inactive-caret)
+      (eq? v 'show-caret)
+      (and (pair? v)
+           (exact-nonnegative-integer? (car v))
+           (exact-nonnegative-integer? (cdr v))
+           ((car v) . <= . (cdr v)))))
+
+(define selected-text-color (get-highlight-text-color))
 
 ;; ------------------------------------------------------------
 
@@ -67,8 +84,11 @@
 (define TAB-WIDTH 20)
 
 (define (replace-nuls s)
-  (if (for/or ([c (in-string s)]) (eq? #\nul c))
-      (regexp-replace* #rx"\0" s " ")
+  (if (for/or ([c (in-string s)]) (or (eq? #\nul c)
+                                      (eq? #\page c)))
+      (regexp-replace* #rx"\f"
+                       (regexp-replace* #rx"\0" s " ")
+                       "^L")
       s))
 
 ;; ------------------------------------------------------------
@@ -154,7 +174,18 @@
         (unless (send s-admin recounted this #t)
           (set! s-count old-count)))))
 
-  (def/public (set-flags [symbol-list? new-flags])
+  (def/public (set-flags [(make-list (symbol-in is-text 
+                                                can-append 
+                                                invisible 
+                                                newline 
+                                                hard-newline 
+                                                handles-events 
+                                                width-depends-on-x 
+                                                height-depends-on-y 
+                                                width-depends-on-y 
+                                                height-depends-on-x
+                                                handles-all-mouse-events)) 
+                          new-flags])
     (s-set-flags (symbols->flags new-flags)))
   
   (define/public (s-set-flags new-flags)
@@ -218,7 +249,7 @@
 
   (def/public (draw [dc<%> dc] [real? x] [real? y] 
                     [real? left] [real? top] [real? bottom] [real? right] 
-                    [real? dx] [real? dy] [symbol? caret])
+                    [real? dx] [real? dy] [caret-status? caret])
     (void))
 
   (def/public (split [exact-nonnegative-integer? position] [box? first] [box? second])
@@ -428,17 +459,42 @@
 
   (def/override (draw [dc<%> dc] [real? x] [real? y] 
                       [real? left] [real? top] [real? bottom] [real? right] 
-                      [real? dx] [real? dy] [symbol? caret])
+                      [real? dx] [real? dy] [caret-status? caret])
     (unless (has-flag? s-flags INVISIBLE)
-      (send dc draw-text (replace-nuls (substring s-buffer s-dtext (+ s-dtext s-count))) x y #f)
-      (when (eq? (system-type) 'unix)
-        (when (send s-style get-underlined)
-          (let ([descent (send s-style get-text-descent dc)]
-                [h (send s-style get-text-height dc)])
-            (let ([y (if (descent . >= . 2)
-                         (+ y (- h (/ descent 2)))
-                         (+ y (- h descent)))])
-              (send dc draw-line x y (+ x str-w) y)))))))
+      (if (and (pair? caret)
+               (or selected-text-color
+                   (eq? 'solid (send dc get-text-mode))))
+          ;; Draw three parts: before selection, selection, after selection
+          (let ([before (replace-nuls
+                         (substring s-buffer 
+                                    s-dtext 
+                                    (+ s-dtext (min (car caret) s-count))))]
+                [sel (replace-nuls
+                      (substring s-buffer 
+                                 (+ s-dtext (min (car caret) s-count))
+                                 (+ s-dtext (min (cdr caret) s-count))))]
+                [after (replace-nuls
+                        (substring s-buffer 
+                                   (+ s-dtext (min (cdr caret) s-count))
+                                   (+ s-dtext s-count)))])
+            (unless (string=? before "")
+              (send dc draw-text before x y #f))
+            (let-values ([(w h d a) (if (string=? before "")
+                                        (values 0 0 0 0)
+                                        (send dc get-text-extent before))])
+              (let ([col (send dc get-text-foreground)]
+                    [mode (send dc get-text-mode)])
+                (when selected-text-color
+                  (send dc set-text-foreground selected-text-color))
+                (send dc set-text-mode 'transparent)
+                (send dc draw-text sel (+ x w) y #f)
+                (send dc set-text-foreground col)
+                (send dc set-text-mode mode))
+              (unless (string=? after "")
+                (let-values ([(w2 h d a) (send dc get-text-extent sel)])
+                  (send dc draw-text after (+ x w w2) y #f)))))
+          ;; Just draw the string
+          (send dc draw-text (replace-nuls (substring s-buffer s-dtext (+ s-dtext s-count))) x y #f))))
 
   (def/override (split [exact-nonnegative-integer? position] [box? first] [box? second])
     (let ([count s-count])
@@ -685,7 +741,7 @@
 
   (def/override (draw [dc<%> dc] [real? x] [real? y] 
                       [real? left] [real? top] [real? bottom] [real? right] 
-                      [real? dx] [real? dy] [symbol? caret])
+                      [real? dx] [real? dy] [caret-status? caret])
     ;; draw nothing
     (void))
 
@@ -755,8 +811,7 @@
 
           (let-values ([(loadfile
                          type
-                         inlined?
-                         delfile)
+                         inlined?)
                         (if (and (equal? filename #"")
                                  can-inline?
                                  (positive? type))
@@ -765,24 +820,18 @@
                                 (send f get-fixed len)
                               (if (and (len . > . 0)
                                        (send f ok?))
-                                  (let ([fname (make-temporary-file "img~a")])
-                                    (call-with-output-file*
-                                     fname
-                                     #:exists 'truncate
-                                     (lambda (fi)
-                                       (for ([i (in-range len)])
-                                         (display (send f get-unterminated-bytes) fi))))
-                                    (values fname
-                                            'unknown/mask
-                                            #t
-                                            fname))
+                                  (let-values ([(in out) (make-pipe)])
+                                    (for ([i (in-range len)])
+                                      (display (send f get-unterminated-bytes) out))
+                                    (close-output-port out)
+                                    (values in
+                                            'unknown/alpha
+                                            #t))
                                   (values filename
                                           (int->img-type type)
-                                          #f
                                           #f)))
                             (values filename
                                     (int->img-type type)
-                                    #f
                                     #f))])
             (let ([snip (make-object image-snip% 
                                      (if (equal? loadfile #"")
@@ -793,8 +842,6 @@
                                      type
                                      (positive? relative) 
                                      inlined?)])
-              (when delfile
-                (delete-file delfile))
               (send snip resize w h)
               (send snip set-offset dx dy)
 
@@ -809,6 +856,12 @@
 (define (unmark-as-selected bm) (void))
 
 (define black-color (make-object color% 0 0 0))
+
+(define image-type?
+  (symbol-in unknown unknown/mask unknown/alpha
+             gif gif/mask gif/alpha
+             jpeg png png/mask png/alpha
+             xbm xpm bmp pict))
 
 (defclass* image-snip% internal-snip% (equal<%>)
   (inherit-field s-admin
@@ -839,11 +892,8 @@
    args
    [([bitmap% bm] [(make-or-false bitmap%) [mask #f]])
     (set-bitmap bm mask)]
-   [([(make-or-false path-string?) [name #f]]
-     [(symbol-in unknown unknown/mask gif gif/mask
-                 jpeg png png/mask
-                 xbm xpm bmp pict)
-      [kind 'unknown]]
+   [([(make-or-false (make-alts path-string? input-port?)) [name #f]]
+     [image-type? [kind 'unknown]]
      [bool? [relative-path? #f]]
      [bool? [inline? #t]])
     (load-file name kind relative-path? inline?)]
@@ -886,7 +936,7 @@
 
   (def/override (draw [dc<%> dc] [real? x] [real? y] 
                       [real? left] [real? top] [real? bottom] [real? right] 
-                      [real? dx] [real? dy] [symbol? caret])
+                      [real? dx] [real? dy] [caret-status? caret])
     (if (or (not bm)
             (not (send bm ok?)))
         (begin
@@ -904,10 +954,15 @@
                          (and mask
                               (send mask ok?)
                               (= w (send mask get-width))
-                              (= w (send mask get-height))
-                              mask)))])
+                              (= h (send mask get-height))
+                              mask)))]
+              [alpha (send dc get-alpha)])
+          (when (pair? caret)
+            (send dc set-alpha (* 0.5 alpha)))
           (send dc draw-bitmap-section bm x y 0 0 w h
-                'solid black-color msk))))
+                'solid black-color msk)
+          (when (pair? caret)
+            (send dc set-alpha alpha)))))
 
   (def/override (copy)
     (let ([s (new image-snip%)])
@@ -943,67 +998,68 @@
           (send f put-fixed 0)
 
           (let ([num-lines
-                 (let ([fname (make-temporary-file "img~a")])
-                   (send bm save-file fname 'png)
-                   (begin0
-                    (call-with-input-file* 
-                     fname
-                     (lambda (fi)
-                       (let loop ([numlines 0])
-                         (let ([s (read-bytes IMG-MOVE-BUF-SIZE fi)])
-                           (if (eof-object? s)
-                               numlines
-                               (begin
-                                 (send f put-unterminated s)
-                                 (loop (add1 numlines))))))))
-                    (delete-file fname)))])
+                 (let-values ([(in out) (make-pipe)])
+                   (send bm save-file out 'png)
+                   (close-output-port out)
+                   (let loop ([numlines 0])
+                     (let ([s (read-bytes IMG-MOVE-BUF-SIZE in)])
+                       (if (eof-object? s)
+                           numlines
+                           (begin
+                             (send f put-unterminated s)
+                             (loop (add1 numlines)))))))])
             
             (let ([end (send f tell)])
               (send f jump-to lenpos)
               (send f put-fixed num-lines)
               (send f jump-to end)))))))
   
-  (def/public (load-file [(make-or-false path-string?) [name #f]]
-                         [(symbol-in unknown unknown/mask gif gif/mask
-                                     jpeg png png/mask
-                                     xbm xpm bmp pict)
-                          [kind 'unknown]]
+  (def/public (load-file [(make-or-false (make-alts path-string? input-port?)) [name #f]]
+                         [image-type? [kind 'unknown]]
                          [bool? [rel-path? #f]]
                          [bool? [inline? #t]])
     (do-set-bitmap #f #f #f)
     
     (let* ([rel-path? (and rel-path?
-                           name
+                           (path-string? name)
                            (relative-path? name))]
            [name (if rel-path?
                      name
-                     (and name (path->complete-path name)))])
+                     (and name 
+                          (if (path-string? name)
+                              (path->complete-path name)
+                              name)))])
       (set! s-flags
             (if rel-path?
                 (add-flag s-flags USES-BUFFER-PATH)
                 (remove-flag s-flags USES-BUFFER-PATH)))
 
-      (let ([name (and name (if (string? name)
-                                (string->path name)
-                                name))])
+      (let ([orig-name name]
+            [name (and name
+                       (path-string? name)
+                       (if (string? name)
+                           (string->path name)
+                           name))])
         (unless inline?
           (set! filename name)
           (set! filetype kind))
 
-        (when name
-          (let ([fullpath (if rel-path?
-                              (path->complete-path
-                               name
-                               (or (and s-admin
-                                        (let ([e (send s-admin get-editor)])
-                                          (and e
-                                               (let ([fn (send e get-filename)])
-                                                 (and fn
-                                                      (let-values ([(base name dir?) (split-path fn)])
-                                                        (and (path? base)
-                                                             (path->complete-path base))))))))
-                                   (current-directory)))
-                              name)])
+        (when orig-name
+          (let ([fullpath (if (input-port? orig-name)
+                              orig-name
+                              (if rel-path?
+                                  (path->complete-path
+                                   name
+                                   (or (and s-admin
+                                            (let ([e (send s-admin get-editor)])
+                                              (and e
+                                                   (let ([fn (send e get-filename)])
+                                                     (and fn
+                                                          (let-values ([(base name dir?) (split-path fn)])
+                                                            (and (path? base)
+                                                                 (path->complete-path base))))))))
+                                       (current-directory)))
+                                  name))])
             (let ([nbm (dynamic-wind
                            begin-busy-cursor
                            (lambda ()
