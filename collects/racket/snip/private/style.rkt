@@ -1,11 +1,11 @@
 #lang scheme/base
 (require scheme/class
          scheme/file
-         (for-syntax scheme/base)
-         "../syntax.ss"
-         "cycle.ss"
-         "private.ss"
-         "wx.ss")
+         (for-syntax scheme/base)         
+         racket/draw
+         racket/draw/private/syntax
+	 racket/draw/private/font-syms
+         racket/snip/private/private)
 
 (provide mult-color<%>
          add-color<%>
@@ -17,6 +17,9 @@
          done-style-reads-writes
          read-styles-from-file
          write-styles-to-file)
+
+;; for contracts
+(define editor-stream-out% object%)
 
 (define default-size 
   (or (get-preference 'MrEd:default-font-size)
