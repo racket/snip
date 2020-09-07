@@ -3,7 +3,7 @@
 (define collection 'multi)
 
 (define deps '("base"
-               "draw-lib"))
+               ["draw-lib" #:version "1.17"]))
 
 (define pkg-desc "implementation (no documentation) part of \"snip\"")
 
