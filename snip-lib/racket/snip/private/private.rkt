@@ -17,6 +17,7 @@
   s-prev set-s-prev
   s-next set-s-next
   s-count set-s-count
+  s-grapheme-count set-s-grapheme-count
   s-style set-s-style
   s-line set-s-line
   s-snipclass set-s-snipclass
