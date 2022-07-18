@@ -594,9 +594,10 @@
                                              (string-grapheme-count s-buffer s-dtext (+ position s-dtext))))
           (set! s-dtext (+ s-dtext position))
 
-          (let ([count (- count position)])
+          (let ([old-count count]
+                [count (- count position)])
             (set! s-count count)
-            (set! s-grapheme-count (if (= count grapheme-count)
+            (set! s-grapheme-count (if (= old-count grapheme-count)
                                        count
                                        (string-grapheme-count s-buffer s-dtext (+ s-dtext count))))
 
