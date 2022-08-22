@@ -28,14 +28,9 @@
               [(eq? 'Extend (char-grapheme-break-property (string-ref a-str i)))
                (loop (sub1 i))])))]
     [(eq? 'Regional_Indicator (char-grapheme-break-property (string-ref b-str b-start)))
-     ;; check for an odd number of RIs before, or an even number before and an extra RI after
-     (define (ri-after?)
-       (let ([i (add1 b-start)])
-         (and (i . < . b-end)
-              (eq? 'Regional_Indicator (char-grapheme-break-property (string-ref b-str i))))))
      (let loop ([i (- a-end 1)])
        (cond
-         [(i . < . a-start) (ri-after?)]
+         [(i . < . a-start) #f]
          [(eq? 'Regional_Indicator (char-grapheme-break-property (string-ref a-str i)))
           (let ([i (sub1 i)])
             (cond
@@ -43,7 +38,7 @@
               [(eq? 'Regional_Indicator (char-grapheme-break-property (string-ref a-str i)))
                (loop (sub1 i))]
               [else #t]))]
-         [else (ri-after?)]))]
+         [else #f]))]
     [else
      ;; otherwise, pairwise works
      (define-values (consume? state) (char-grapheme-step (string-ref a-str (sub1 a-end)) 0))
