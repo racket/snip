@@ -110,7 +110,7 @@
                              "\U1F1E6" 0 1)) ; RI
   (check #f (grapheme-spans? "a\U1F1E6\U1F1E6" 0 3  ; RI+RI
                              "\U1F1E6" 0 1)) ; RI
-  (check #t (grapheme-spans? "a\U1F1E6\U1F1E6" 0 3  ; RI+RI
+  (check #f (grapheme-spans? "a\U1F1E6\U1F1E6" 0 3  ; RI+RI
                              "\U1F1E6\U1F1E6" 0 2)) ; RI+RI
   (check #f (grapheme-spans? "a\U1F1E6\U1F1E6" 0 3  ; RI+RI
                              "\U1F1E6" 0 1)) ; RI
