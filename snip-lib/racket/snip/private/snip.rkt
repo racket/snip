@@ -27,7 +27,7 @@
          (struct-out snip-class-link)
 
          snip->admin
-         snip->char-count
+         snip->count
          snip->grapheme-count
          snip->next
          snip->prev
@@ -42,7 +42,7 @@
          set-snip-loc!
          set-snip-style!
          set-snip-flags!
-         set-snip-char-count!
+         set-snip-count!
          set-snip-grapheme-count!
          set-snip-prev!
          set-snip-next!
@@ -147,8 +147,8 @@
   (def/public (get-grapheme-count) s-grapheme-count)
   (def/public (get-flags) (flags->symbols s-flags))
 
-  (def/public (grapheme-to-char-position [exact-nonnegative-integer? i] [any? [end? #f]]) i)
-  (def/public (char-to-grapheme-position [exact-nonnegative-integer? i]) i)
+  (def/public (grapheme-position [exact-nonnegative-integer? i] [any? [end? #f]]) i)
+  (def/public (position-grapheme [exact-nonnegative-integer? i]) i)
 
   (super-new)
 
@@ -426,7 +426,7 @@
             [else
              (loop (+ i (string-grapheme-span s-buffer (+ s-dtext i))) i)]))))
 
-  (def/override (grapheme-to-char-position [exact-nonnegative-integer? i])
+  (def/override (grapheme-position [exact-nonnegative-integer? i])
     (if (= s-char-count s-grapheme-count)
         i
         (let loop ([g 0] [pos 0])
@@ -436,8 +436,8 @@
             [else
              (loop (add1 g) (+ pos (string-grapheme-span s-buffer (+ s-dtext pos) (+ s-dtext s-char-count))))]))))
   
-  (def/override (char-to-grapheme-position [exact-nonnegative-integer? i]
-                                           [any? [end? #f]])
+  (def/override (position-grapheme [exact-nonnegative-integer? i]
+                                   [any? [end? #f]])
     (if (= s-char-count s-grapheme-count)
         i
         (let loop ([g 0] [prev-g 0] [pos 0])
@@ -603,7 +603,7 @@
                         s-buffer
                         s-dtext
                         (+ position s-dtext))
-          (set-snip-char-count! snip position)
+          (set-snip-count! snip position)
           (set-snip-grapheme-count! snip (if (= count grapheme-count)
                                              position
                                              (string-grapheme-count s-buffer s-dtext (+ position s-dtext))))
@@ -631,14 +631,14 @@
   (def/override (merge-with [snip% pred])
     (cond
       [(grapheme-spans? (string-snip->buffer pred) (string-snip->dtext pred) (+ (string-snip->dtext pred)
-                                                                                (snip->char-count pred))
+                                                                                (snip->count pred))
                         s-buffer s-dtext (+ s-dtext s-char-count))
        ;; merging would change the rendered result, so don't
        #f]
       [else
        (set! str-metric #f)
        (insert-with-offset (string-snip-buffer pred)
-                           (snip->char-count pred)
+                           (snip->count pred)
                            (string-snip-dtext pred)
                            0)
        (when (not (has-flag? s-flags CAN-SPLIT))
@@ -713,7 +713,7 @@
 
   (def/override (do-copy-to [snip% snip])
     (super do-copy-to snip)
-    (set-snip-char-count! snip 0)
+    (set-snip-count! snip 0)
     (set-snip-grapheme-count! snip 0)
     (send snip insert-with-offset s-buffer s-char-count s-dtext 0))
 
@@ -1528,7 +1528,7 @@
 ;; ------------------------------------------------------------
 
 (define snip->admin (class-field-accessor snip% s-admin))
-(define snip->char-count (class-field-accessor snip% s-char-count))
+(define snip->count (class-field-accessor snip% s-char-count))
 (define snip->grapheme-count (class-field-accessor snip% s-grapheme-count))
 (define snip->next (class-field-accessor snip% s-next))
 (define snip->prev (class-field-accessor snip% s-prev))
@@ -1543,7 +1543,7 @@
 (define set-snip-loc! (class-field-mutator snip% s-line))
 (define set-snip-style! (class-field-mutator snip% s-style))
 (define set-snip-flags! (class-field-mutator snip% s-flags))
-(define set-snip-char-count! (class-field-mutator snip% s-char-count))
+(define set-snip-count! (class-field-mutator snip% s-char-count))
 (define set-snip-grapheme-count! (class-field-mutator snip% s-grapheme-count))
 (define set-snip-prev! (class-field-mutator snip% s-prev))
 (define set-snip-next! (class-field-mutator snip% s-next))
