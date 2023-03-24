@@ -1177,7 +1177,8 @@
        (for ([k (in-hash-keys notifications)])
          (k which))]
       [else
-       (hash-set! pending-style-changes which #t)]))
+       (when which
+         (hash-set! pending-style-changes which #t))]))
 
   (define pending-style-changes (make-hash))
   (define style-change-sequence-depth 0)
@@ -1186,10 +1187,14 @@
   (def/public (end-style-change-sequence)
     (when (= style-change-sequence-depth 0)
       (error 'end-style-changes "not in a style-change sequence"))
-    (set! style-change-sequence-depth (- 1 style-change-sequence-depth))
+    (set! style-change-sequence-depth (- style-change-sequence-depth 1))
     (when (= style-change-sequence-depth 0)
+      (define something-changed? #f)
       (for ([(style _) (in-hash pending-style-changes)])
+        (set! something-changed? #t)
         (style-was-changed style))
+      (when something-changed?
+        (style-was-changed #f))
       (set! pending-style-changes (make-hash))))
 
   (def/public (notify-on-change [procedure? f])
