@@ -1172,8 +1172,25 @@
                newstyle))))))
 
   (def/public (style-was-changed [(make-or-false style%) which])
-    (for ([k (in-hash-keys notifications)])
-      (k which)))
+    (cond
+      [(= 0 style-change-sequence-depth)
+       (for ([k (in-hash-keys notifications)])
+         (k which))]
+      [else
+       (hash-set! pending-style-changes which #t)]))
+
+  (define pending-style-changes (make-hash))
+  (define style-change-sequence-depth 0)
+  (def/public (begin-style-change-sequence)
+    (set! style-change-sequence-depth (+ 1 style-change-sequence-depth)))
+  (def/public (end-style-change-sequence)
+    (when (= style-change-sequence-depth 0)
+      (error 'end-style-changes "not in a style-change sequence"))
+    (set! style-change-sequence-depth (- 1 style-change-sequence-depth))
+    (when (= style-change-sequence-depth 0)
+      (for ([(style _) (in-hash pending-style-changes)])
+        (style-was-changed style))
+      (set! pending-style-changes (make-hash))))
 
   (def/public (notify-on-change [procedure? f])
     (hash-set! notifications f 
