@@ -424,7 +424,7 @@
              (if end? i prev-i)]
             [(= i pos) i]
             [else
-             (loop (+ i (string-grapheme-span s-buffer (+ s-dtext i))) i)]))))
+             (loop (+ i (string-grapheme-span s-buffer (+ s-dtext i) (+ s-dtext s-char-count))) i)]))))
 
   (def/override (grapheme-position [exact-nonnegative-integer? i])
     (if (= s-char-count s-grapheme-count)
