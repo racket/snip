@@ -1174,8 +1174,7 @@
   (def/public (style-was-changed [(make-or-false style%) which])
     (cond
       [(= 0 style-change-sequence-depth)
-       (for ([k (in-hash-keys notifications)])
-         (k which))]
+       (call-these-notifications (hash-keys notifications) which)]
       [else
        (when which
          (hash-set! pending-style-changes which #t))]))
@@ -1189,13 +1188,19 @@
       (error 'end-style-changes "not in a style-change sequence"))
     (set! style-change-sequence-depth (- style-change-sequence-depth 1))
     (when (= style-change-sequence-depth 0)
-      (define something-changed? #f)
-      (for ([(style _) (in-hash pending-style-changes)])
-        (set! something-changed? #t)
-        (style-was-changed style))
-      (when something-changed?
-        (style-was-changed #f))
-      (set! pending-style-changes (make-hash))))
+      (define styles-changed (hash-keys pending-style-changes))
+      (unless (null? styles-changed)
+        (set! pending-style-changes (make-hash))
+        (define notification-ks (hash-keys notifications))
+        (for ([style (in-list styles-changed)])
+          (call-these-notifications notification-ks style))
+        (call-these-notifications notification-ks #f))))
+  (define/private (call-these-notifications notification-ks which)
+    (for ([k (in-list notification-ks)])
+      (when (hash-has-key? notifications k)
+        ;; guard the invocation of the callback in case
+        ;; one of the other callbacks removed removed something
+        (k which))))
 
   (def/public (notify-on-change [procedure? f])
     (hash-set! notifications f 
