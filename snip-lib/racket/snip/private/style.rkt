@@ -1174,7 +1174,7 @@
   (def/public (style-was-changed [(make-or-false style%) which])
     (cond
       [(= 0 style-change-sequence-depth)
-       (call-these-notifications (hash-keys notifications) which)]
+       (call-these-notifications 'style-was-changed (hash-keys notifications) which)]
       [else
        (when which
          (hash-set! pending-style-changes which #t))]))
@@ -1193,14 +1193,21 @@
         (set! pending-style-changes (make-hash))
         (define notification-ks (hash-keys notifications))
         (for ([style (in-list styles-changed)])
-          (call-these-notifications notification-ks style))
-        (call-these-notifications notification-ks #f))))
-  (define/private (call-these-notifications notification-ks which)
+          (call-these-notifications 'end-style-change-sequence notification-ks style))
+        (call-these-notifications 'end-style-change-sequence notification-ks #f))))
+  (define/private (call-these-notifications who notification-ks which)
     (for ([k (in-list notification-ks)])
       (when (hash-has-key? notifications k)
         ;; guard the invocation of the callback in case
         ;; one of the other callbacks removed removed something
-        (k which))))
+        (k which)
+        (unless (= 0 style-change-sequence-depth)
+          (error who
+                 (string-append
+                  "unclosed style change sequence during notification\n"
+                  "  callback passed to notify-on-change: ~e\n"
+                  "  argument passed to callback: ~e")
+                 k which)))))
 
   (def/public (notify-on-change [procedure? f])
     (hash-set! notifications f 
