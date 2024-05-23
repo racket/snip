@@ -1,6 +1,7 @@
 #lang racket/base
 (require racket/class
          racket/file
+         racket/promise
          (for-syntax racket/base)
          racket/draw
          racket/draw/private/syntax
@@ -28,11 +29,14 @@
 ;; for contracts
 (define editor-stream-out% object%)
 
-(define default-size 
-  (or (get-preference* 'GRacket:default-font-size)
-      (case (system-type)
-        [(windows) 10]
-        [else 12])))
+(define default-size
+  (delay
+    (or (with-handlers ([exn:fail? (λ (e) #f)])
+          ;; this could error if called within a sandbox with not enough permission
+          (get-preference* 'GRacket:default-font-size))
+        (case (system-type)
+          [(windows) 10]
+          [else 12]))))
 
 (define black-color (make-object color% 0 0 0))
 
@@ -337,7 +341,7 @@
        (set! family 'default)
        (set! face #f)
        (set! size-mult 0)
-       (set! size-add default-size)
+       (set! size-add (force default-size))
        (set! weight-on 'normal)
        (set! weight-off 'base)
        (set! style-on 'normal)
@@ -665,7 +669,7 @@
     (send nonjoin-delta set-delta 'change-normal)
 
     (set! s-font (send the-font-list find-or-create-font
-                     default-size 'default 'normal 'normal))
+                       (force default-size) 'default 'normal 'normal))
     (send s-foreground set 0 0 0)
     (send s-background set 255 255 255)
     (set! pen (send the-pen-list find-or-create-pen s-foreground 0 'solid))
