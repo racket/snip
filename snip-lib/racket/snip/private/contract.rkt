@@ -47,6 +47,32 @@
         'jpeg 'png 'png/mask 'png/alpha
         'xbm 'xpm 'bmp 'pict))
 
+(define mult-color<%>/c
+  (class/c
+   [get (->*m ((box/c real?) (box/c real?) (box/c real?)) ((or/c (box/c real?) #f)) void?)]
+   [get-r (->m real?)]
+   [get-g (->m real?)]
+   [get-b (->m real?)]
+   [get-a (->m real?)]
+   [set (->*m ((box/c real?) (box/c real?) (box/c real?)) ((or/c (box/c real?) #f)) void?)]
+   [set-a (->m real? void?)]
+   [set-r (->m real? void?)]
+   [set-g (->m real? void?)]
+   [set-b (->m real? void?)]))
+
+(define add-color<%>/c
+  (class/c
+   [get (->*m ((box/c real?) (box/c real?) (box/c real?)) ((or/c (box/c real?) #f)) void?)]
+   [get-r (->m real?)]
+   [get-g (->m real?)]
+   [get-b (->m real?)]
+   [get-a (->m real?)]
+   [set (->*m ((box/c real?) (box/c real?) (box/c real?)) ((or/c (box/c real?) #f)) void?)]
+   [set-a (->m real? void?)]
+   [set-r (->m real? void?)]
+   [set-g (->m real? void?)]
+   [set-b (->m real? void?)]))
+
 (define style-delta%/c
   (class/c
     (collapse (->m (is-a?/c style-delta%) boolean?))
@@ -54,12 +80,12 @@
     (equal? (->m (is-a?/c style-delta%) boolean?))
     (get-alignment-off (->m alignment/c))
     (get-alignment-on  (->m alignment/c))
-    (get-background-add (->m (is-a?/c add-color<%>)))
-    (get-background-mult (->m (is-a?/c mult-color<%>)))
+    (get-background-add (->m (instanceof/c add-color<%>/c)))
+    (get-background-mult (->m (instanceof/c mult-color<%>/c)))
     (get-face (->m (or/c string? false/c)))
     (get-family (->m (or/c 'base font-family/c)))
-    (get-foreground-add  (->m (is-a?/c add-color<%>)))
-    (get-foreground-mult (->m (is-a?/c mult-color<%>)))
+    (get-foreground-add  (->m (instanceof/c add-color<%>/c)))
+    (get-foreground-mult (->m (instanceof/c mult-color<%>/c)))
     (get-size-add (->m byte?))
     (get-size-in-pixels-off (->m boolean?))
     (get-size-in-pixels-on  (->m boolean?))
