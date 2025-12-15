@@ -164,7 +164,7 @@
         boolean?))
 
 (define snip%-copy/c
-  (->m (is-a?/c snip%)))
+  (->m (instanceof/c (recursive-contract snip%/c))))
 
 (define snip%-draw/c
   (->m (is-a?/c dc<%>)
