@@ -9,7 +9,17 @@
          "snip-admin.rkt"
          "style.rkt")
 
-(provide (all-defined-out))
+(provide add-color<%>/c
+         image-snip%/c
+         mult-color<%>/c
+         readable-snip<%>/c
+         snip%/c
+         snip-class%/c
+         snip-admin%/c
+         string-snip%/c
+         style-delta%/c
+         style-list%/c
+         tab-snip%/c)
 
 ;; dummy definitions for contracts
 (define-values (cursor% mouse-event% key-event% pasteboard%
@@ -27,6 +37,10 @@
      (equal-to? (->m (is-a?/c cls) (-> any/c any/c boolean?) boolean?))
      (equal-hash-code-of (->m (-> any/c exact-integer?) exact-integer?))
      (equal-secondary-hash-code-of (->m (-> any/c exact-integer?) exact-integer?)))))
+
+(define instanceof-style-delta%/c (instanceof/c (recursive-contract style-delta%/c)))
+(define instanceof-snip%/c (instanceof/c (recursive-contract snip%/c)))
+(define instanceof-snip-admin%/c (instanceof/c (recursive-contract snip-admin%/c)))
 
 (define readable-snip<%>/c
   (class/c
@@ -75,14 +89,14 @@
 
 (define style-delta%/c
   (class/c
-    (collapse (->m (is-a?/c style-delta%) boolean?))
-    (copy (->m (is-a?/c style-delta%) void?))
-    (equal? (->m (is-a?/c style-delta%) boolean?))
+    (collapse (->m instanceof-style-delta%/c boolean?))
+    (copy (->m instanceof-style-delta%/c void?))
+    (equal? (->m instanceof-style-delta%/c boolean?))
     (get-alignment-off (->m alignment/c))
     (get-alignment-on  (->m alignment/c))
     (get-background-add (->m (instanceof/c add-color<%>/c)))
     (get-background-mult (->m (instanceof/c mult-color<%>/c)))
-    (get-face (->m (or/c string? false/c)))
+    (get-face (->m (or/c string? #f)))
     (get-family (->m (or/c 'base font-family/c)))
     (get-foreground-add  (->m (instanceof/c add-color<%>/c)))
     (get-foreground-mult (->m (instanceof/c mult-color<%>/c)))
@@ -103,7 +117,7 @@
     (set-alignment-off (->m alignment/c void?))
     (set-alignment-on  (->m alignment/c void?))
     (set-delta (case->m
-                 (-> (is-a?/c style-delta%))
+                 (-> instanceof-style-delta%/c)
                  (-> (or/c 'change-nothing
                            'change-normal
                            'change-toggle-underline
@@ -111,7 +125,7 @@
                            'change-normal-color
                            'change-italic
                            'change-bold)
-                     (is-a?/c style-delta%))
+                     instanceof-style-delta%/c)
                  (-> (or/c 'change-family
                            'change-style
                            'change-toggle-style
@@ -126,14 +140,14 @@
                            'change-underline
                            'change-size-in-pixels)
                      any/c
-                     (is-a?/c style-delta%))))
+                     instanceof-style-delta%/c)))
     (set-delta-background (->m (or/c string? (is-a?/c color%))
-                               (is-a?/c style-delta%)))
+                               instanceof-style-delta%/c))
     (set-delta-face (->*m (string?) ((or/c 'base font-family/c))
-                          (is-a?/c style-delta%)))
+                          instanceof-style-delta%/c))
     (set-delta-foreground (->m (or/c string? (is-a?/c color%))
-                               (is-a?/c style-delta%)))
-    (set-face (->m (or/c string? false/c) void?))
+                               instanceof-style-delta%/c))
+    (set-face (->m (or/c string? #f) void?))
     (set-family (->m (or/c 'base font-family/c) void?))
     (set-size-add (->m byte? void?))
     (set-size-in-pixels-off (->m any/c void?))
@@ -154,16 +168,16 @@
   (class/c
     (basic-style (->m (is-a?/c style<%>)))
     (convert (->m (is-a?/c style<%>) (is-a?/c style<%>)))
-    (find-named-style (->m string? (or/c (is-a?/c style<%>) false/c)))
+    (find-named-style (->m string? (or/c (is-a?/c style<%>) #f)))
     (find-or-create-join-style (->m (is-a?/c style<%>) (is-a?/c style<%>) (is-a?/c style<%>)))
-    (find-or-create-style (->m (is-a?/c style<%>) (is-a?/c style-delta%) (is-a?/c style<%>)))
+    (find-or-create-style (->m (is-a?/c style<%>) instanceof-style-delta%/c (is-a?/c style<%>)))
     (forget-notification (->m any/c void?))
-    (index-to-style (->m exact-nonnegative-integer? (or/c (is-a?/c style<%>) false/c)))
+    (index-to-style (->m exact-nonnegative-integer? (or/c (is-a?/c style<%>) #f)))
     (new-named-style (->m string? (is-a?/c style<%>) (is-a?/c style<%>)))
-    (notify-on-change (->m (-> (or/c (is-a?/c style<%>) false/c) any) any/c))
+    (notify-on-change (->m (-> (or/c (is-a?/c style<%>) #f) any) any/c))
     (number (->m exact-nonnegative-integer?))
     (replace-named-style (->m string? (is-a?/c style<%>) (is-a?/c style<%>)))
-    (style-to-index (->m (is-a?/c style<%>) (or/c exact-nonnegative-integer? false/c)))))
+    (style-to-index (->m (is-a?/c style<%>) (or/c exact-nonnegative-integer? #f)))))
 
 ;; snip% utils
 (define snip%-edit-operation/c
@@ -179,7 +193,7 @@
        real?
        real?
        (is-a?/c mouse-event%)
-       (or/c (is-a?/c cursor%) false/c)))
+       (or/c (is-a?/c cursor%) #f)))
 
 (define snip%-blink-caret/c
   (->m (is-a?/c dc<%>) real? real? void?))
@@ -190,7 +204,7 @@
         boolean?))
 
 (define snip%-copy/c
-  (->m (instanceof/c (recursive-contract snip%/c))))
+  (->m instanceof-snip%/c))
 
 (define snip%-draw/c
   (->m (is-a?/c dc<%>)
@@ -208,37 +222,37 @@
        void?))
 
 (define snip%-other-equal-to?/c
-  (->m (is-a?/c snip%) (-> any/c any/c boolean?) boolean?))
+  (->m instanceof-snip%/c (-> any/c any/c boolean?) boolean?))
 
 (define snip%-find-scroll-step/c
   (->m real? exact-nonnegative-integer?))
 
 (define snip%-get-admin/c
-  (->m (or/c (is-a?/c snip-admin%) false/c)))
+  (->m (or/c instanceof-snip-admin%/c #f)))
 
 (define snip%-get-count/c
   (->m exact-nonnegative-integer?))
 
 (define snip%-get-extent/c
   (->*m ((is-a?/c dc<%>) real? real?)
-        ((or/c (box/c (>=/c 0)) false/c)
-         (or/c (box/c (>=/c 0)) false/c)
-         (or/c (box/c (>=/c 0)) false/c)
-         (or/c (box/c (>=/c 0)) false/c)
-         (or/c (box/c (>=/c 0)) false/c)
-         (or/c (box/c (>=/c 0)) false/c))
+        ((or/c (box/c (>=/c 0)) #f)
+         (or/c (box/c (>=/c 0)) #f)
+         (or/c (box/c (>=/c 0)) #f)
+         (or/c (box/c (>=/c 0)) #f)
+         (or/c (box/c (>=/c 0)) #f)
+         (or/c (box/c (>=/c 0)) #f))
         void?))
 
 (define snip%-get-extent-override/c
   (->m (is-a?/c dc<%>)
        real?
        real?
-       (or/c (box/c (>=/c 0)) false/c)
-       (or/c (box/c (>=/c 0)) false/c)
-       (or/c (box/c (>=/c 0)) false/c)
-       (or/c (box/c (>=/c 0)) false/c)
-       (or/c (box/c (>=/c 0)) false/c)
-       (or/c (box/c (>=/c 0)) false/c)
+       (or/c (box/c (>=/c 0)) #f)
+       (or/c (box/c (>=/c 0)) #f)
+       (or/c (box/c (>=/c 0)) #f)
+       (or/c (box/c (>=/c 0)) #f)
+       (or/c (box/c (>=/c 0)) #f)
+       (or/c (box/c (>=/c 0)) #f)
        void?))
 
 (define snip%-get-flags/c
@@ -280,13 +294,13 @@
   (->m boolean?))
 
 (define snip%-match?/c
-  (->m (is-a?/c snip%) boolean?))
+  (->m instanceof-snip%/c boolean?))
 
 (define snip%-merge-with/c
-  (->m (is-a?/c snip%) (or/c (is-a?/c snip%) false/c)))
+  (->m instanceof-snip%/c (or/c instanceof-snip%/c #f)))
 
 (define snip%-next/c
-  (->m (or/c (is-a?/c snip%) false/c)))
+  (->m (or/c instanceof-snip%/c #f)))
 
 (define snip%-on-char/c
   (->m (is-a?/c dc<%>)
@@ -310,7 +324,7 @@
        real?))
 
 (define snip%-previous/c
-  (->m (or/c (is-a?/c snip%) false/c)))
+  (->m (or/c instanceof-snip%/c #f)))
 
 (define snip%-release-from-owner/c
   (->m boolean?))
@@ -321,7 +335,7 @@
        boolean?))
 
 (define snip%-set-admin/c
-  (->m (or/c (is-a?/c snip-admin%) false/c) void?))
+  (->m (or/c instanceof-snip-admin%/c #f) void?))
 
 (define snip%-set-count/c
   (->m exact-positive-integer? void?))
@@ -343,8 +357,8 @@
 
 (define snip%-split/c
   (->m exact-nonnegative-integer?
-       (box/c (is-a?/c snip%))
-       (box/c (is-a?/c snip%))
+       (box/c instanceof-snip%/c)
+       (box/c instanceof-snip%/c)
        void?))
 
 (define snip%-write/c
@@ -426,7 +440,7 @@
 
 (define snip-class%-read/c
   (->m (is-a?/c editor-stream-in%)
-       (or/c (is-a?/c snip%) false/c)))
+       (or/c instanceof-snip%/c #f)))
 
 (define snip-class%-read-header/c
   (->m (is-a?/c editor-stream-in%) boolean?))
@@ -482,7 +496,7 @@
     (load-file (->*m ((or/c path-string? input-port? #f))
                      (tab-snip-filetype/c any/c any/c)
                      void?))
-    (other-equal-to? (->m (is-a?/c snip%)
+    (other-equal-to? (->m instanceof-snip%/c
                           (any/c any/c . -> . boolean?)
                           boolean?))
     (resize (->m (>=/c 0)
@@ -493,23 +507,23 @@
 
 ;; snip-admin% method contracts
 (define snip-admin%-get-view/c
-  (->*m ((or/c (box/c real?) false/c)
-         (or/c (box/c real?) false/c)
-         (or/c (box/c (>=/c 0)) false/c)
-         (or/c (box/c (>=/c 0)) false/c))
-        ((or/c (is-a?/c snip%) false/c))
+  (->*m ((or/c (box/c real?) #f)
+         (or/c (box/c real?) #f)
+         (or/c (box/c (>=/c 0)) #f)
+         (or/c (box/c (>=/c 0)) #f))
+        ((or/c instanceof-snip%/c #f))
         void?))
 
 (define snip-admin%-get-view-size/c
-  (->m (or/c (box/c (>=/c 0)) false/c)
-       (or/c (box/c (>=/c 0)) false/c)
+  (->m (or/c (box/c (>=/c 0)) #f)
+       (or/c (box/c (>=/c 0)) #f)
        void?))
 
 (define snip-admin%-modified/c
-  (->m (is-a?/c snip%) any/c void?))
+  (->m instanceof-snip%/c any/c void?))
 
 (define snip-admin%-needs-update/c
-  (->m (is-a?/c snip%)
+  (->m instanceof-snip%/c
        real?
        real?
        (>=/c 0)
@@ -518,22 +532,22 @@
 
 (define snip-admin%-popup-menu/c
   (->m (is-a?/c popup-menu%)
-       (is-a?/c snip%)
+       instanceof-snip%/c
        real?
        real?
        boolean?))
 
 (define snip-admin%-recounted/c
-  (->m (is-a?/c snip%) any/c void?))
+  (->m instanceof-snip%/c any/c void?))
 
 (define snip-admin%-release-snip/c
-  (->m (is-a?/c snip%) boolean?))
+  (->m instanceof-snip%/c boolean?))
 
 (define snip-admin%-resized/c
-  (->m (is-a?/c snip%) any/c void?))
+  (->m instanceof-snip%/c any/c void?))
 
 (define snip-admin%-scroll-to/c
-  (->*m ((is-a?/c snip%)
+  (->*m (instanceof-snip%/c
          real?
          real?
          (>=/c 0)
@@ -543,7 +557,7 @@
         boolean?))
 
 (define snip-admin%-set-caret-owner/c
-  (->m (is-a?/c snip%)
+  (->m instanceof-snip%/c
        (or/c 'immediate 'display 'global)
        void?))
 
@@ -561,14 +575,14 @@
 
 (define snip-admin%-get-tabs/c
   (->*m ()
-        ((or/c (box/c exact-nonnegative-integer?) false/c)
-         (or/c (box/c real?) false/c)
-         (or/c (box/c real?) false/c))
+        ((or/c (box/c exact-nonnegative-integer?) #f)
+         (or/c (box/c real?) #f)
+         (or/c (box/c real?) #f))
         (listof real?)))
 
 (define snip-admin%/c
   (class/c
-    (get-dc (->m (or/c (is-a?/c dc<%>) false/c)))
+    (get-dc (->m (or/c (is-a?/c dc<%>) #f)))
     (get-editor (->m (or/c (is-a?/c text%) (is-a?/c pasteboard%))))
     (get-view snip-admin%-get-view/c)
     (get-view-size snip-admin%-get-view-size/c)
@@ -601,4 +615,3 @@
       (get-selected-text-color snip-admin%-get-selected-text-color/c)
       (call-with-busy-cursor snip-admin%-call-with-busy-cursor/c)
       (get-tabs snip-admin%-get-tabs/c))))
-
