@@ -1251,7 +1251,7 @@
         (set! members new-members)
         ;; May have moved parent after its own parents
         (style-has-new-child (send s get-s-base-style) s)
-        (let ([join (send s get-s-join-style)])
+        (let ([join (send s get-s-join-shift-style)])
           (when join
             (style-has-new-child join s))))))
   
